@@ -1,3 +1,26 @@
+//
+// Heltec 32 LoRa OLED (with SD Card)
+//               ______________
+//          Gnd |    |  USB|   | Gnd
+//           5v |    | port|   |  5v
+//          3v3 |    |_____|   | 3v3
+//          Gnd |      ALL     |  36<-     <- : Input Only!
+//           Rx |     GPIO     |  37<-
+//           Tx |     3.3v     |  38<-
+//          RST |   ________   |  39<-
+//            0 |  |        |  |  34<-
+//    (SCL)  22 |  |        |  |  35<-
+// SPI MISO  19 |  |        |  |  32<-
+//           23 |  |        |  |  33<-
+//LoRa CS(HI)18 |  |        |  |  25  (LED)
+// SPI SCK    5 |  |  OLED  |  |  26  LoRa IRQ
+//OLED SCL   15 |  |        |  |  27  SPI MOSI
+//            2 |  |        |  |  14  LoRa Rst
+//OLED SCA    4 |  |        |  |  12
+//           17 |  |________|  |  13
+//OLED RST   16 |______________|  21  (SD_CS)
+
+
 #include <TinyGPS++.h>
 #include "heltec.h"
 #define BAND    915E6 //433E6  //you can set band here directly,e.g. 868E6,915E6
@@ -24,10 +47,6 @@ void setup()
 //Enviar pacote
 void sendPacket(){
   LoRa.beginPacket();
-  //LoRa.print("Hora: ");
-  //LoRa.print(outh);
-  //LoRa.print("LAT: ");
-  //LoRa.print(outlt);
   LoRa.endPacket();
 }
 
@@ -45,52 +64,33 @@ void loop()
       LoRa.print(outalt);
       LoRa.endPacket();
       Heltec.display->clear();
-      //Heltec.display->drawStringMaxWidth(0, 10, 128, out);
       Heltec.display->drawString(5, 5, outh);
       Heltec.display->drawString(5, 20, outlt);
       Heltec.display->drawString(5, 35, outlg);
       Heltec.display->drawString(5, 50, outalt);
-      //displayInfo();
       Heltec.display->display();
 
       //sendPacket(); //Enviar dados
 
       //Imprimir no serial
-      if (gps.time.hour() < 10) Serial.print(F("0"));
-      Serial.print(gps.time.hour());
-      Serial.print(F(":"));
-      if (gps.time.minute() < 10) Serial.print(F("0"));
-      Serial.print(gps.time.minute());
-      Serial.print(F(":"));
-      if (gps.time.second() < 10) Serial.print(F("0"));
-      Serial.print(gps.time.second());
+      Serial.println(outh);
+      Serial.println(outlt);
+      Serial.println(outlg);
+      Serial.println(outalt + "\n");
+      
       }
   if (millis() > 5000 && gps.charsProcessed() < 10)
   {
     Serial.println(F("GPS não detectado."));
+    Heltec.display->drawString(0, 10, "GPS não detectado");
     while(true);
   }
 }
 
 
-
+//Informações do GPS
 void displayInfo()
 {
-    /*String str = "";
-    char buff[12];
-    str = str + "Hora: " + (gps.time.hour()-3) + ":";
-    str = str + gps.time.minute() + ":";
-    str = str + gps.time.second() + " ";        
-    float lat = gps.location.lat();
-    dtostrf(lat, 5, 6, buff);
-    str = str + " " + "LAT: " + buff + " "; 
-    float lng = gps.location.lng();
-    dtostrf(lng, 5, 6, buff);              
-    str = str + "LNG: " + buff + " ";
-    str = str + "ALT: " + gps.altitude.meters() + " ";
-    str = str + x;           
-    out = str;
-    x = x + 1;*/
     String hrs = "";
     hrs = hrs + "Hora: ";
     if (gps.time.hour()  <= 2) {
