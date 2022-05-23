@@ -25,6 +25,13 @@
 #include <mySD.h>
 #include <TinyGPS++.h>
 #include "heltec.h"
+//MPU
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
+
+// definir um nome para manipilar melhor 
+Adafruit_MPU6050 mpu;
 
 #define MICROSD_PIN_CHIP_SELECT   4
 #define MICROSD_PIN_MOSI          13
@@ -36,9 +43,9 @@
 #define LOG_FILE_SUFFIX "csv" // Sufixo do arquivo
 char logFileName[13]; // Char string para o nome do arquivo
 // Data to be logged:
-#define LOG_COLUMN_COUNT 4
+#define LOG_COLUMN_COUNT 11
 char * log_col_names[LOG_COLUMN_COUNT] = {
- "hora", "longitude", "latitude", "altitude"
+ "hora", "longitude", "latitude", "altitude", "acelX", "acelY", "acelZ", "gyroX", "gyroY", "gyroZ", "temp"
 };
 
 
@@ -73,6 +80,84 @@ void setup()
 
   updateFileName(); // Toda vez que inicia, cria um novo arquivo gpslog(x+1).csv
   printHeader(); // Coloca o cabeçalho no arquivo novo
+  // --- Fim da inicialização do SD ---
+
+  //MPU
+  Serial.println("Adafruit MPU6050 test!");
+
+  // inicializar MPU 
+  if (!mpu.begin(//Testar outras portas além da 21 e 22)) {
+    Serial.println("Failed to find MPU6050 chip");
+    while (1) {
+      delay(10);
+    }
+  }
+  Serial.println("MPU6050 Found!");
+  
+  // faixa de medição do acelerômetro
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  Serial.print("Accelerometer range set to: ");
+  switch (mpu.getAccelerometerRange()) {
+  case MPU6050_RANGE_2_G:
+    Serial.println("+-2G");
+    break;
+  case MPU6050_RANGE_4_G:
+    Serial.println("+-4G");
+    break;
+  case MPU6050_RANGE_8_G:
+    Serial.println("+-8G");
+    break;
+  case MPU6050_RANGE_16_G:
+    Serial.println("+-16G");
+    break;
+  }
+
+  // faixa de medição do giroscópio
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  Serial.print("Gyro range set to: ");
+  switch (mpu.getGyroRange()) {
+  case MPU6050_RANGE_250_DEG:
+    Serial.println("+- 250 deg/s");
+    break;
+  case MPU6050_RANGE_500_DEG:
+    Serial.println("+- 500 deg/s");
+    break;
+  case MPU6050_RANGE_1000_DEG:
+    Serial.println("+- 1000 deg/s");
+    break;
+  case MPU6050_RANGE_2000_DEG:
+    Serial.println("+- 2000 deg/s");
+    break;
+  }
+
+  // faixa de medição do giroscópio 
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  Serial.print("Filter bandwidth set to: ");
+  switch (mpu.getFilterBandwidth()) {
+  case MPU6050_BAND_260_HZ:
+    Serial.println("260 Hz");
+    break;
+  case MPU6050_BAND_184_HZ:
+    Serial.println("184 Hz");
+    break;
+  case MPU6050_BAND_94_HZ:
+    Serial.println("94 Hz");
+    break;
+  case MPU6050_BAND_44_HZ:
+    Serial.println("44 Hz");
+    break;
+  case MPU6050_BAND_21_HZ:
+    Serial.println("21 Hz");
+    break;
+  case MPU6050_BAND_10_HZ:
+    Serial.println("10 Hz");
+    break;
+  case MPU6050_BAND_5_HZ:
+    Serial.println("5 Hz");
+    break;
+  }
+
+  //Fim da configuração do MPU
 }
 
 void loop()
@@ -89,6 +174,13 @@ void loop()
       LoRa.print(outlt + "\n");
       LoRa.print(outlg + "\n");
       LoRa.print(outalt);
+      LoRa.print(a.acceleration.x);
+      LoRa.print(a.acceleration.y);
+      LoRa.print(a.acceleration.z);
+      LoRa.print(g.gyro.x);
+      LoRa.print(g.gyro.y);
+      LoRa.print(g.gyro.z);
+      LoRa.print(temp.temperature);
       LoRa.endPacket();
       /*Heltec.display->clear();
       Heltec.display->drawString(5, 5, outh);
@@ -145,6 +237,14 @@ byte logGPSData()
   dtostrf(alt, 5, 6, buff3);
   strAlt = strAlt + "ALT: " + buff3; 
   outalt = strAlt;
+
+  //MPU
+  /* Modo que vai ser visualizado o dados */
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+  
+  //Configuração do acelerômetro
+  
   
   if (logFile)
   { 
@@ -158,8 +258,28 @@ byte logGPSData()
     Serial.println(outlt);
     logFile.print(tinyGPS.altitude.meters(), 1);
     logFile.print('\t');
+    logFile.print(a.acceleration.x);
+    logFile.print('\t');
+    logFile.print(a.acceleration.y);
+    logFile.print('\t');
+    logFile.print(a.acceleration.z);
+    logFile.print('\t');
+    logFile.print(g.gyro.x);
+    logFile.print('\t');
+    logFile.print(g.gyro.y);
+    logFile.print('\t');
+    logFile.print(g.gyro.z);
+    logFile.print('\t');
+    logFile.print(temp.temperature);
     Serial.println(outlg);
     Serial.println(outalt);
+    Serial.println(a.acceleration.x);
+    Serial.println(a.acceleration.y);
+    Serial.println(a.acceleration.z);
+    Serial.println(g.gyro.x);
+    Serial.println(g.gyro.y);
+    Serial.println(g.gyro.z);
+    Serial.println(temp.temperature);
     Serial.print('\n');
     logFile.println();
     logFile.close();
