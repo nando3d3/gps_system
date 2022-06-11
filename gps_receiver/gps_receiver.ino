@@ -1,5 +1,5 @@
 #include "heltec.h"
-#define BAND    915E6  //Escolha a frequência
+#define BAND    920E6  //Escolha a frequência
 String packSize = "--";
 String packet ;
 /* Protótipo da função */
@@ -7,7 +7,7 @@ void LoRaDataPrint();
 void cbk(int packetSize);
 /*
   Nome da função: LoRaDataPrint
-  objetivo: imprime a temperatura e tamanho do pacote recebido no display.
+  objetivo: imprime os dados recebidos e tamanho do pacote recebido no display.
 */
 void LoRaDataPrint(){
   Heltec.display->clear();
@@ -21,7 +21,7 @@ void LoRaDataPrint(){
 /*
   Nome da função: cbk
   recebe como parâmetos um inteiros (packetSize)
-  objetivo: recebe a temperatura via LoRa e armazena na variável packet.
+  objetivo: recebe os dados via LoRa e armazena na variável packet.
 */
 void cbk(int packetSize) {
   packet ="";
@@ -31,7 +31,7 @@ void cbk(int packetSize) {
   }
   LoRaDataPrint();
 }
-/******************* função principal (setup) *********************/
+
 void setup()
 {
   pinMode(LED,OUTPUT); //inicializa o LED
@@ -63,7 +63,7 @@ void loop()
     digitalWrite(LED, LOW);    // Desliiga o LED
     delay(500);                // Espera 500 milissegundos
     Serial.print("");
-    Serial.print(packet); //Imprime no monitor serial
+    Serial.println(packet + "\n"); //Imprime no monitor serial
   }
   delay(10);
 }
