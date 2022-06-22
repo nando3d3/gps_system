@@ -30,7 +30,7 @@
 #define MICROSD_PIN_MOSI          13
 #define MICROSD_PIN_MISO          21
 #define MICROSD_PIN_SCK           22
- 
+
 #define LOG_FILE_PREFIX "gpslog" // Nome do arquivo.
 #define MAX_LOG_FILES 100 // Número máximo de gpslog que pode ser feito
 #define LOG_FILE_SUFFIX "csv" // Sufixo do arquivo
@@ -41,10 +41,14 @@ char * log_col_names[LOG_COLUMN_COUNT] = {
  "hora", "latitude", "longitude", "altitude(m)", "velocidade(km/h)", "curso(°)", "satelites", "data"
 };
 
-
 TinyGPSPlus tinyGPS; // objeto tinyGPSPlus para ser usado em tudo
 #define GPS_BAUD 9600
 #define BAND    920E6 //433E6  //Escolha a frequência
+
+//Controle da taxa de dados
+#define LOG_RATE 500 //Log a cada 1 segundo
+unsigned long lastLog = 0; //Variável global do último log
+
 String outh; //String para armazenar a hora
 String outlg; //String para armazenar a longitude
 String outlt; //String para armazenar a latitude
@@ -74,44 +78,48 @@ void setup()
 
 void loop()
 {
-  while (Serial2.available() > 0)
-    if (tinyGPS.encode(Serial2.read()))
+  if ((lastLog + LOG_RATE) <= millis())
+  { // If it's been LOG_RATE milliseconds since the last log:
+    if (tinyGPS.location.isUpdated()) // If the GPS data is vaild
+    {
+      if (logGPSData()) // Log the GPS data
       {
-      logGPSData();
-
-      // Imprime hora, latitude, longitude e altitude no seral
-      Serial.println(outh);
-      Serial.println(outlt);
-      Serial.println(outlg);
-      Serial.println(outalt);
-      Serial.println(velo);
-      Serial.println(curso);
-      Serial.println(sat);
-      Serial.println("Data: " + String(tinyGPS.date.value()));
-      Serial.print('\n');
-      if (testSD == 0) {
+        Serial.println("GPS logged."); // Print a debug message
+        lastLog = millis(); // Update the lastLog variable
+        if (testSD == 0) {
         Serial.println("Falha em salvar no SD!");
       }
-      //Transmite os dados
-      LoRa.beginPacket();
-      LoRa.setTxPower(14,RF_PACONFIG_PASELECT_PABOOST);
-      LoRa.print(outh + "\n");
-      LoRa.print(outlt + "\n");
-      LoRa.print(outlg + "\n");
-      LoRa.print(outalt + "\n");
-      LoRa.print(velo + "\n");
-      LoRa.print(curso + "\n");
-      LoRa.print(sat + "\n");
-      LoRa.print("Data: " + String(tinyGPS.date.value()) + "\n");
-      LoRa.print("SD: " + String(testSD));
-      LoRa.endPacket();
-
+        //Transmite os dados
+        LoRa.beginPacket();
+        LoRa.setTxPower(14,RF_PACONFIG_PASELECT_PABOOST);
+        LoRa.print(outh + "\n");
+        LoRa.print(outlt + "\n");
+        LoRa.print(outlg + "\n");
+        LoRa.print(outalt + "\n");
+        LoRa.print(velo + "\n");
+        LoRa.print(curso + "\n");
+        LoRa.print(sat + "\n");
+        LoRa.print("Data: " + String(tinyGPS.date.value()) + "\n");
+        LoRa.print("SD: " + String(testSD));
+        LoRa.endPacket();
+       }
+      else // Se falhar em obter dados
+      {
+        Serial.println("Falha em obter novos dados.");
       }
-  if (millis() > 5000 && tinyGPS.charsProcessed() < 10)
-  {
-    Serial.println(F("GPS não detectado."));
-    while(true);
+    }
+    else // Se os dados do GPS não são válidos
+    {
+      // Imprime uma mensagem de bug, indicando que talvez não haja satélites suficientes
+      Serial.print("Sem dados GPS. Sats: ");
+      Serial.println(tinyGPS.satellites.value());
+    }
   }
+ 
+  // Se não está logando, continua a alimentar o GPS
+  while (Serial2.available())
+    tinyGPS.encode(Serial2.read());
+
 }
 
 byte logGPSData()
@@ -157,6 +165,17 @@ byte logGPSData()
   velo = "VEL: " + String(tinyGPS.speed.mph()*1.609, 2) + " km/h";
   sat = "SAT: " + String(tinyGPS.satellites.value());
   curso = "Curso: " + String(tinyGPS.course.deg(), 1) + "°";
+  
+ 
+
+  Serial.println(outh);
+  Serial.println(outlt);
+  Serial.println(outlg);
+  Serial.println(outalt);
+  //Serial.println("VEL: " + String(tinyGPS.speed.mph()*1.60934, 1) + " km/h");
+  Serial.println("Curso: " + String(tinyGPS.course.deg(), 1) + "°");
+  Serial.println("SAT: " + String(tinyGPS.satellites.value()));
+  Serial.println("Data: " + String(tinyGPS.date.value()) + "\n");
 
   File logFile = SD.open(logFileName, FILE_WRITE); // Abre o arquivo
   
@@ -175,6 +194,7 @@ byte logGPSData()
     logFile.print(tinyGPS.course.deg(), 1);
     logFile.print(',');
     logFile.print(tinyGPS.satellites.value());
+    logFile.print(',');
     logFile.print(tinyGPS.date.value());
     logFile.println();
     logFile.close();
